@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>modular-2 system setup</title>
+  <link href="/home/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/home/css/default.css" rel="stylesheet">
+  <link href="/home/css/font-awesome.min.css" rel="stylesheet">
+  <script src="/home/js/jquery-3.4.1.min.js"></script>
+   <script src="/home/js/bootstrap.min.js"></script>
+   <script>
+     var outgoing_id=0;
+    function get_outgoing_id()
+    {
+      outgoing_id++;
+      if (outgoing_id>5000) outgoing_id=0;
+      return outgoing_id;
+    }
+ $( document ).ready(function() {
+  $("#rpclist").hide();
+  $("#applist").hide();
+ window.restbed = { ws: null };
+ openIOsocket();
+ })
+
+ function getRpclist()
+{
+  var path="000/000/000";
+  var id=get_outgoing_id();
+  var jsonrpc={
+  "method":"get.rpclist",
+  "mode":1,
+  "path":path,
+  "params":{"value":[0]},
+  "id": id
+ }
+    console.log(jsonrpc);
+      window.restbed.ws.send(JSON.stringify(jsonrpc));
+   
+}
+function getApplist()
+{
+  var path="000/000/000";
+  var id=get_outgoing_id();
+  var jsonrpc={
+  "method":"get.applist",
+  "mode":1,
+  "path":path,
+  "params":{"value":[0]},
+  "id": id
+ }
+    console.log(jsonrpc);
+      window.restbed.ws.send(JSON.stringify(jsonrpc));
+   
+}
+function rpclistInsert(value)
+{
+  $("#applist").hide();
+  $("#rpclist").show();
+  $("#rpclistbody").empty();
+  value.forEach(element => {
+    var tr="<tr><td>"+element["rpcname"]+"</td><td>"+element["path"]+"</td><td>"+element["index"]+"</td></tr>"
+    $("#rpclistbody").append(tr);
+  });
+}
+function applistInsert(value)
+{
+  $("#rpclist").hide();
+  $("#applist").show();
+  $("#applistbody").empty();
+  value.forEach(element => {
+    var tr="<tr><td>"+element["name"]+"</td><td>"+element["port"]+"</td></tr>"
+    $("#applistbody").append(tr);
+  });
+}
+function openIOsocket( )
+      {
+         if ( "WebSocket" in window )
+         {
+            var ws = new WebSocket( "ws://192.168.31.98:2019/iosocket/0234" );
+            ws.binaryType = "arraybuffer";
+            ws.onopen = function( )
+            {
+              // add_message( "Established connection." );
+             setInterval(function(){
+               if (window.restbed.ws.readyState  == window.restbed.ws.OPEN)
+              {
+                var jsonrpc={
+                  "method":"ping",
+                  "id": 0
+                }
+                  window.restbed.ws.send(JSON.stringify(jsonrpc));
+             }
+             },1500);
+              // toggle_control_access( );
+            };
+
+            ws.onmessage = function( evt )
+            {
+              //add_message( evt.data );
+           var eventMessage  = new Uint8Array(evt.data);
+            var s = new TextDecoder("utf-8").decode(eventMessage);
+          
+           var messageBody=JSON.parse(s);
+        // console.log(messageBody);
+           if ("method" in messageBody)
+            {               
+                        if (messageBody.method=="welcome")  
+                        { 
+                        console.log("ws connected");
+                        }
+
+            };            
+           if ("result" in messageBody)
+           {        
+                    var  result=messageBody.result;
+                 //  console.log(messageBody);
+                    if (result.status=="err")
+                    {
+                      
+                      console.log("error with Code: "+result.value[0]);
+                    }
+                 
+          
+              if (result.status=="get.rpclist")
+              {
+                
+                if ("value" in result)
+                {
+                  rpclistInsert(result.value);
+                }
+              }else
+              if (result.status=="get.applist")
+              {
+                applistInsert(result.value);
+              }
+              if (result.status=="OK")
+              {
+                 measurment();
+                if ("value" in result)
+               $("#result").html("600+2="+result.value[0]);
+              }
+           } 
+            }
+            ws.onclose = function( evt )
+            {
+           console.log("connection closed with Code:"+evt.code);
+               //toggle_control_access( );
+            };
+
+            ws.onerror = function( evt )
+            {
+              // add_message( "Error: socket connection interrupted." );
+            };
+
+            window.restbed.ws = ws;
+         }
+         else
+         {
+            alert( "WebSockets NOT supported by your Browser!" );
+         }
+      }
+
+   </script>
+  </head>
+  
+ <body class="container">
+   <!-- Image and text -->
+   <nav class="navbar fixed-top  navbar-default ">
+      <a class="nav-link" href="/home/views/index.html"><i class="icon-home icon-2x "> </i>主页</a>
+      <a class="navbar-brand" href="#">运维管理</a>
+      <a class="nav-link  pull-right" href="#"><i class="icon-cogs icon-2x"> </i>设置</a>
+    </nav>  
+    <button class="btn btn-info" onclick="getRpclist()">读取RPC表</button>
+    <button class="btn btn-info" onclick="getApplist()">读取App表</button>
+    <div >
+        <table class="table" id="rpclist">
+            <thead>
+              <tr>                  
+                <th scope="col">Name</th>
+                <th scope="col">Path</th>
+                <th scope="col">index</th>
+              </tr>
+            </thead>
+            <tbody id="rpclistbody">              
+            </tbody>
+        </table> 
+        <table class="table" id="applist">
+          <thead>
+            <tr>                  
+              <th scope="col">Name</th>
+              <th scope="col">Port</th>
+            </tr>
+          </thead>
+          <tbody id="applistbody">              
+          </tbody>
+      </table>    
+     </div>
+  </body>
+  </html>
